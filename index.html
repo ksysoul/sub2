@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>교원 보강 수당 정산 및 자동 대조 프로그램</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background-color: #ffffff;
+            color: #333333;
+            margin: 0;
+            padding: 30px;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border: 1px solid #dcdcdc;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 40px;
+        }
+        h2 {
+            color: #1a1a1a;
+            border-bottom: 3px solid #2c3e50;
+            padding-bottom: 15px;
+            margin-top: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .file-box-wrapper {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .file-card {
+            background-color: #fafbfc;
+            border: 2px dashed #cbd5e1;
+            padding: 15px;
+            text-align: center;
+        }
+        .file-card label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #1e293b;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .status-msg {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+        .btn-wrap {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+        button.action-btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 14px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(37,99,235,0.3);
+        }
+        button.action-btn:hover {
+            background-color: #1d4ed8;
+        }
+        .teacher-list {
+            border: 1px solid #cbd5e1;
+        }
+        .grade-title {
+            background-color: #e2e8f0;
+            color: #1e293b;
+            padding: 12px 20px;
+            font-weight: bold;
+            font-size: 17px;
+            border-bottom: 1px solid #cbd5e1;
+            border-top: 2px solid #94a3b8;
+        }
+        .teacher-item {
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #ffffff;
+        }
+        .teacher-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .teacher-header:hover {
+            background-color: #f1f5f9;
+        }
+        .teacher-info {
+            font-weight: bold;
+            color: #0f172a;
+        }
+        /* 통계 뱃지 스타일 가독성 개선 */
+        .sub-badge {
+            background-color: #f8fafc;
+            color: #475569;
+            padding: 6px 14px;
+            border: 1px solid #cbd5e1;
+            font-weight: bold;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+        .sub-badge.has-count {
+            background-color: #ffffff;
+            border-color: #94a3b8;
+        }
+        .stat-total { color: #0f172a; margin-right: 6px; }
+        .stat-paid { color: #16a34a; font-weight: 800; margin-right: 6px; }
+        .stat-exclude { color: #dc2626; font-weight: 800; }
+
+        .detail-box {
+            display: none;
+            background-color: #f8fafc;
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #ffffff;
+            font-size: 14px;
+        }
+        .detail-table th, .detail-table td {
+            border: 1px solid #cbd5e1;
+            padding: 10px 12px;
+            text-align: center;
+        }
+        .detail-table th {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-weight: bold;
+        }
+        .empty-notice {
+            color: #64748b;
+            font-style: italic;
+            text-align: center;
+            margin: 0;
+            padding: 10px;
+        }
+        .guide-box {
+            background-color: #fefce8;
+            border: 1px solid #fde047;
+            padding: 15px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            color: #854d0e;
+        }
+        .exclude-text {
+            color: #dc2626;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📊 교원 보강 수당 정산 및 자동 대조 프로그램</h2>
+    
+    <div class="guide-box">
+        💡 <b>사용 안내:</b> <b>교사 명렬표, 결보강 자료, 전담 시간표</b> 파일을 모두 첨부(CSV)한 뒤 <b>[보강 수당 정산 및 대조 실행]</b> 버튼을 누르세요. 담임 본인 반 보강 및 전담 공강 시간이 아닐 때의 보강은 자동으로 [지급 제외] 처리됩니다.
+    </div>
+
+    <div class="file-box-wrapper">
+        <div class="file-card">
+            <label>📁 1. 교사 명렬표 (CSV)</label>
+            <input type="file" id="teacherFile" accept=".csv">
+            <div id="teacherStatus" class="status-msg">파일을 선택해주세요</div>
+        </div>
+        <div class="file-card">
+            <label>📁 2. 결보강 자료 (CSV)</label>
+            <input type="file" id="subFile" accept=".csv">
+            <div id="subStatus" class="status-msg">파일을 선택해주세요</div>
+        </div>
+        <div class="file-card">
+            <label>📁 3. 전담 시간표 (CSV)</label>
+            <input type="file" id="timetableFile" accept=".csv">
+            <div id="timetableStatus" class="status-msg">파일을 선택해주세요</div>
+        </div>
+    </div>
+
+    <div class="btn-wrap">
+        <button class="action-btn" onclick="processData()">✨ 보강 수당 정산 및 대조 실행</button>
+    </div>
+
+    <div id="resultContainer" class="teacher-list">
+        <div style="padding: 40px; text-align: center; color: #94a3b8; font-size: 15px;">
+            파일을 업로드하고 조회 버튼을 누르면 학년별 교사 보강 수당 정산 결과가 여기에 표시됩니다.
+        </div>
+    </div>
+</div>
+
+<script>
+let teacherRows = [];
+let subRows = [];
+let timetableMap = {};
+
+function parseCSVComplete(text) {
+    let rows = [];
+    let currentRow = [];
+    let currentVal = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+        let char = text[i];
+        let nextChar = text[i + 1];
+
+        if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+                currentVal += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            currentRow.push(currentVal.trim().replace(/^["']|["']$/g, ''));
+            currentVal = "";
+        } else if ((char === '\r' && nextChar === '\n') && !inQuotes) {
+            currentRow.push(currentVal.trim().replace(/^["']|["']$/g, ''));
+            rows.push(currentRow);
+            currentRow = [];
+            currentVal = "";
+            i++;
+        } else if (char === '\n' && !inQuotes) {
+            currentRow.push(currentVal.trim().replace(/^["']|["']$/g, ''));
+            rows.push(currentRow);
+            currentRow = [];
+            currentVal = "";
+        } else {
+            currentVal += char;
+        }
+    }
+    if (currentVal !== "" || currentRow.length > 0) {
+        currentRow.push(currentVal.trim().replace(/^["']|["']$/g, ''));
+        rows.push(currentRow);
+    }
+    return rows;
+}
+
+document.getElementById('teacherFile').addEventListener('change', function(e) {
+    let file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('teacherStatus').innerText = "파일 읽는 중...";
+    
+    let reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            let text = evt.target.result;
+            let allParsedRows = parseCSVComplete(text);
+            if (allParsedRows.length === 0) throw new Error("파일 내용이 비어 있습니다.");
+
+            let headers = allParsedRows[0];
+            teacherRows = [];
+
+            for (let i = 1; i < allParsedRows.length; i++) {
+                let cols = allParsedRows[i];
+                if (cols.length === 0 || (cols.length === 1 && cols[0] === "")) continue;
+                let obj = {};
+                for (let j = 0; j < headers.length; j++) {
+                    obj[headers[j]] = cols[j] !== undefined ? cols[j] : "";
+                }
+                teacherRows.push(obj);
+            }
+
+            document.getElementById('teacherStatus').innerText = "✅ 로드 완료 (" + teacherRows.length + "명)";
+            document.getElementById('teacherStatus').style.color = "#16a34a";
+        } catch (err) {
+            alert("교사 명렬표 파일 분석 오류: " + err.message);
+            document.getElementById('teacherStatus').innerText = "❌ 오류 발생";
+            document.getElementById('teacherStatus').style.color = "#dc2626";
+        }
+    };
+    reader.readAsText(file, "EUC-KR");
+});
+
+document.getElementById('subFile').addEventListener('change', function(e) {
+    let file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('subStatus').innerText = "파일 읽는 중...";
+    
+    let reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            let text = evt.target.result;
+            let allParsedRows = parseCSVComplete(text);
+            let parsedData = [];
+            
+            let headerIdx = -1;
+            for (let i = 0; i < allParsedRows.length; i++) {
+                let rowStr = allParsedRows[i].join(" ");
+                if (rowStr.includes("일자") || rowStr.includes("보강") || rowStr.includes("학급")) {
+                    headerIdx = i;
+                    break;
+                }
+            }
+            if (headerIdx === -1) headerIdx = 0;
+
+            let lastDate = "";
+            let lastClass = "";
+
+            for (let i = headerIdx + 1; i < allParsedRows.length; i++) {
+                let cols = allParsedRows[i];
+                if (!cols || cols.length < 4) continue;
+
+                let rawDate = cols[0] !== undefined ? cols[0] : "";
+                let isDateLike = /^\d/.test(rawDate) || rawDate.includes("-") || rawDate.includes(".");
+
+                if (rawDate !== "" && isDateLike) {
+                    lastDate = rawDate;
+                } else {
+                    cols[0] = lastDate;
+                }
+
+                let rawClass = cols[1] !== undefined ? cols[1] : "";
+                if (rawClass !== "") {
+                    lastClass = rawClass;
+                } else {
+                    cols[1] = lastClass;
+                }
+
+                parsedData.push({ _cols: cols });
+            }
+
+            subRows = parsedData;
+            document.getElementById('subStatus').innerText = "✅ 로드 완료 (총 " + subRows.length + "건)";
+            document.getElementById('subStatus').style.color = "#16a34a";
+        } catch (err) {
+            alert("결보강 자료 파일 분석 오류: " + err.message);
+            document.getElementById('subStatus').innerText = "❌ 오류 발생";
+            document.getElementById('subStatus').style.color = "#dc2626";
+        }
+    };
+    reader.readAsText(file, "EUC-KR");
+});
+
+document.getElementById('timetableFile').addEventListener('change', function(e) {
+    let file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('timetableStatus').innerText = "파일 읽는 중...";
+    
+    let reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            let text = evt.target.result;
+            let allParsedRows = parseCSVComplete(text);
+            if (allParsedRows.length === 0) throw new Error("파일 내용이 비어 있습니다.");
+
+            let headers = allParsedRows[0];
+            timetableMap = {};
+
+            for (let i = 1; i < allParsedRows.length; i++) {
+                let cols = allParsedRows[i];
+                if (cols.length === 0 || !cols[0]) continue;
+                let tName = cols[0].replace(/\s*[\(\（].*?[\)\）]/g, '').trim();
+
+                for (let j = 1; j < headers.length; j++) {
+                    let timeKey = headers[j] ? headers[j].trim() : '';
+                    let cellVal = cols[j] ? cols[j].trim() : '';
+                    if (timeKey) {
+                        timetableMap[tName + "_" + timeKey] = cellVal; 
+                    }
+                }
+            }
+
+            document.getElementById('timetableStatus').innerText = "✅ 시간표 로드 완료";
+            document.getElementById('timetableStatus').style.color = "#16a34a";
+        } catch (err) {
+            alert("전담 시간표 파일 분석 오류: " + err.message);
+            document.getElementById('timetableStatus').innerText = "❌ 오류 발생";
+            document.getElementById('timetableStatus').style.color = "#dc2626";
+        }
+    };
+    reader.readAsText(file, "EUC-KR");
+});
+
+function extractDayChar(dateStr) {
+    if (dateStr.includes('월')) return '월';
+    if (dateStr.includes('화')) return '화';
+    if (dateStr.includes('수')) return '수';
+    if (dateStr.includes('목')) return '목';
+    if (dateStr.includes('금')) return '금';
+    return '';
+}
+
+function normalizeClassStr(str) {
+    if (!str) return "";
+    let numbers = str.match(/\d+/g);
+    if (!numbers || numbers.length < 2) return str.replace(/\s+/g, '');
+    return numbers[0] + "-" + numbers[1];
+}
+
+function processData() {
+    if (teacherRows.length === 0 || subRows.length === 0) {
+        alert("⚠️ 경고: 교사 명렬표와 결보강 자료 파일을 모두 첨부해 주세요!");
+        return;
+    }
+
+    try {
+        let container = document.getElementById('resultContainer');
+        container.innerHTML = "";
+
+        let allTeachers = teacherRows;
+
+        allTeachers.sort((a, b) => {
+            let gA = parseInt(a['학년구분'] || 0);
+            let gB = parseInt(b['학년구분'] || 0);
+            if (gA !== gB) return gA - gB;
+            let bA = a['반'] || '';
+            let bB = b['반'] || '';
+            return bA.localeCompare(bB);
+        });
+
+        let currentGradeGroup = -1;
+        let html = "";
+
+        allTeachers.forEach(t => {
+            let grade = t['학년구분'] || '기타';
+            let cls = t['반'] || '';
+            let position = t['직책'] || '';
+            let rawName = t['이름'] || '';
+            let teacherNameClean = rawName.replace(/\s*[\(\（].*?[\)\）]/g, '').trim();
+
+            let myNormalizedClass = cls ? normalizeClassStr(grade + "학년 " + cls + "반") : "";
+
+            if (grade !== currentGradeGroup) {
+                currentGradeGroup = grade;
+                html += `<div class="grade-title">📌 ${grade}학년 보강 수당 정산 현황</div>`;
+            }
+
+            let matchedSubs = subRows.filter(s => {
+                let cols = s._cols || [];
+                let subTeacherCell = cols[8] !== undefined ? cols[8] : "";
+                let subTeacherClean = subTeacherCell.replace(/\s*[\(\（].*?[\)\）]/g, '').trim();
+                return subTeacherClean !== "" && subTeacherClean === teacherNameClean;
+            });
+
+            let totalCount = matchedSubs.length;
+            let paidCount = 0;
+            let excludedCount = 0;
+
+            let detailHtml = "";
+            if (totalCount > 0) {
+                detailHtml += `<table class="detail-table">
+                    <tr><th>일자</th><th>학급</th><th>교시</th><th>교과</th><th>수당 판정 사유</th></tr>`;
+                
+                matchedSubs.forEach(s => {
+                    let cols = s._cols || [];
+                    let dDate = cols[0] || '';
+                    let dClass = cols[1] || '';
+                    let dPeriod = cols[2] || '';
+                    let dSubject = cols[3] || '';
+
+                    let targetNormalizedClass = normalizeClassStr(dClass);
+                    let dayChar = extractDayChar(dDate);
+                    let periodNum = dPeriod.replace(/[^0-9]/g, '');
+                    let timeKey = dayChar + periodNum;
+
+                    let isExcluded = false;
+                    let excludeReason = "";
+
+                    if (myNormalizedClass !== "" && targetNormalizedClass !== "" && myNormalizedClass === targetNormalizedClass) {
+                        isExcluded = true;
+                        excludeReason = "[지급 제외] 담임 본인 반 보강";
+                    } else {
+                        let timetableKey = teacherNameClean + "_" + timeKey;
+                        if (Object.keys(timetableMap).length > 0 && timetableMap[timetableKey]) {
+                            isExcluded = true;
+                            excludeReason = `[지급 제외] 전담 수업 시간 겹침 (${timeKey} 원래 수업 있음)`;
+                        }
+                    }
+
+                    if (isExcluded) {
+                        excludedCount++;
+                        detailHtml += `<tr>
+                            <td>${dDate}</td><td>${dClass}</td><td>${dPeriod}교시</td><td>${dSubject}</td>
+                            <td class="exclude-text">${excludeReason}</td>
+                        </tr>`;
+                    } else {
+                        paidCount++;
+                        detailHtml += `<tr>
+                            <td>${dDate}</td><td>${dClass}</td><td>${dPeriod}교시</td><td>${dSubject}</td>
+                            <td style="color: #16a34a; font-weight: bold;">[지급 가능] 정식 보강 (공강 활용)</td>
+                        </tr>`;
+                    }
+                });
+                detailHtml += `</table>`;
+            } else {
+                detailHtml += `<p class="empty-notice">등록된 보강 내역이 없습니다.</p>`;
+            }
+
+            let badgeClass = totalCount > 0 ? "sub-badge has-count" : "sub-badge";
+            let subInfoText = cls ? `${grade}학년 ${cls}반` : `${grade}학년 (${position || '전담'})`;
+
+            // 통계 가독성을 위해 총계, 지급가능(초록), 제외(붉은색)를 명확히 분리한 HTML 구조
+            let statHtml = `
+                <span class="stat-total">총 ${totalCount}회</span> | 
+                <span class="stat-paid">지급 가능 ${paidCount}회</span> 
+                <span class="stat-exclude">(제외 ${excludedCount}회)</span> ▼
+            `;
+
+            html += `
+            <div class="teacher-item">
+                <div class="teacher-header" onclick="toggleDetail(this)">
+                    <span class="teacher-info">${subInfoText} &nbsp;|&nbsp; ${rawName} 교사</span>
+                    <span class="${badgeClass}">${statHtml}</span>
+                </div>
+                <div class="detail-box">
+                    ${detailHtml}
+                </div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+        alert("보강 수당 정산 및 자동 대조가 완료되었습니다!");
+    } catch (err) {
+        alert("조회 실행 중 오류가 발생했습니다: " + err.message);
+        console.error(err);
+    }
+}
+
+function toggleDetail(headerElem) {
+    let detailBox = headerElem.nextElementSibling;
+    if (detailBox.style.display === "block") {
+        detailBox.style.display = "none";
+    } else {
+        detailBox.style.display = "block";
+    }
+}
+</script>
+
+</body>
+</html>
