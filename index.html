@@ -420,14 +420,16 @@ function processData() {
 
         let allTeachers = teacherRows;
 
-        allTeachers.sort((a, b) => {
-            let gA = parseInt(a['학년구분'] || 0);
-            let gB = parseInt(b['학년구분'] || 0);
-            if (gA !== gB) return gA - gB;
-            let bA = a['반'] || '';
-            let bB = b['반'] || '';
-            return bA.localeCompare(bB);
-        });
+       allTeachers.sort((a, b) => {
+    let gA = parseInt(a['학년구분'] || 0);
+    let gB = parseInt(b['학년구분'] || 0);
+    if (gA !== gB) return gA - gB;
+    
+    // 문자열에서 숫자만 추출하여 크기 비교 (10반, 11반이 밀리지 않도록 함)
+    let bA = parseInt((a['반'] || '').replace(/[^0-9]/g, '')) || 0;
+    let bB = parseInt((b['반'] || '').replace(/[^0-9]/g, '')) || 0;
+    return bA - bB;
+});
 
         let currentGradeGroup = -1;
         let html = "";
